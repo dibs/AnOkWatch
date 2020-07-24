@@ -17,7 +17,7 @@ Created by Lewis he on October 10, 2019.
 #include "string.h"
 #include <Ticker.h>
 
-#define RTC_TIME_ZONE   "GMT"
+#define RTC_TIME_ZONE   "GMT+12"
 
 LV_FONT_DECLARE(Ubuntu);
 LV_IMG_DECLARE(bg);
@@ -61,6 +61,7 @@ static void view_event_handler(lv_obj_t *obj, lv_event_t event);
 static void wifi_event_cb();
 static void setting_event_cb();
 static void bluetooth_event_cb();
+static void shed_event_cb();
 static void about_event_cb();
 static void wifi_destory();
 
@@ -298,8 +299,9 @@ private:
 
 MenuBar::lv_menu_config_t _cfg[4] = {
     {.name = "WiFi",  .img = (void *) &wifi, .event_cb = wifi_event_cb},
-    {.name = "Bluetooth",  .img = (void *) &bluetooth, /*.event_cb = bluetooth_event_cb*/},
-    {.name = "Settings",  .img = (void *) &setting, /*.event_cb = setting_event_cb */},
+    /*{.name = "Bluetooth",  .img = (void *) &bluetooth, .event_cb = bluetooth_event_cb},*/
+    {.name = "Settings",  .img = (void *) &setting, .event_cb = setting_event_cb},
+    {.name = "Shed",  .img = (void *) &setting, .event_cb = shed_event_cb},
     {.name = "About",  .img = (void *) &modules, .event_cb = about_event_cb}
 };
 
@@ -343,7 +345,7 @@ void setupGui()
     lv_style_set_bg_opa(&torchStyle, LV_OBJ_PART_MAIN, 255);
     lv_style_set_image_recolor(&torchStyle, LV_OBJ_PART_MAIN, LV_COLOR_CYAN);
     lv_obj_add_style(torchLabel, LV_OBJ_PART_MAIN, &torchStyle);
-    //lv_label_set_text(torchLabel, "TORCH MODE");
+    lv_label_set_text(torchLabel, "TORCH MODE");
     lv_obj_move_background(torchLabel);
     lv_obj_set_pos(torchLabel, 0, 0);
     lv_obj_set_size(torchLabel, LV_HOR_RES, LV_VER_RES);
@@ -1181,7 +1183,7 @@ static void wifi_sync_mbox_cb(lv_task_t *t)
     static  struct tm timeinfo;
     bool ret = false;
     static int retry = 0;
-    configTzTime(RTC_TIME_ZONE, "pool.ntp.org");
+    configTzTime(RTC_TIME_ZONE, "oceania.pool.ntp.org");
     while (1) {
         ret = getLocalTime(&timeinfo);
         if (!ret) {
@@ -1370,12 +1372,23 @@ static void wifi_destory()
  *          !SETTING EVENT
  *
  */
+//static lv_obj_t *setting = nullptr;
+
 static void setting_event_cb()
 {
-
-
+  Serial.println("SETTINGS!!!");
+  delay(1000);
+  
 }
-
+static void exit_setting(lv_obj_t *obj, lv_event_t event)
+{
+  if (event == LV_EVENT_SHORT_CLICKED)
+  {
+    //lv_obj_set_hidden(setting, true);
+  Serial.println("Exit Settings!");
+    menuBars.hidden(false);
+  }
+}
 /*****************************************************************
  *
  *          ! LIGHT EVENT
@@ -1445,6 +1458,76 @@ static void destory_mbox()
         mbox1 = nullptr;
     }
 }
+
+
+/*****************************************************************
+ *
+ *          Shed EVENT
+ *
+ * This is an experiment trying to do basically anything as I only got my watch yesterday
+ * and broke the screen today.. :/
+ */
+static lv_obj_t *shed = nullptr;
+
+static void exit_shed(lv_obj_t *obj, lv_event_t event)
+{
+  if (event == LV_EVENT_SHORT_CLICKED)
+  {
+    lv_obj_set_hidden(shed, true);
+
+    menuBars.hidden(false);
+  }
+}
+
+static void shed_event_cb()
+{
+  Serial.println("Shed event!");
+  lv_obj_t *_exitBtn = nullptr;
+  lv_obj_t * table = nullptr;
+
+  if (shed == nullptr)
+  {
+    static lv_style_t barStyle;
+    
+    lv_style_init(&barStyle);
+    lv_style_set_radius(&barStyle, LV_OBJ_PART_MAIN, 0);
+    lv_style_set_bg_color(&barStyle, LV_OBJ_PART_MAIN, LV_COLOR_GRAY);
+    lv_style_set_bg_opa(&barStyle, LV_OBJ_PART_MAIN, LV_OPA_20);
+    lv_style_set_border_width(&barStyle, LV_OBJ_PART_MAIN, 0);
+    lv_style_set_text_color(&barStyle, LV_OBJ_PART_MAIN, LV_COLOR_WHITE);
+    lv_style_set_image_recolor(&barStyle, LV_OBJ_PART_MAIN, LV_COLOR_WHITE);
+     
+    shed = lv_cont_create(lv_scr_act(), NULL);
+    lv_obj_set_size(shed, LV_HOR_RES, LV_VER_RES);
+    lv_obj_add_style(shed, LV_OBJ_PART_MAIN, &barStyle);
+
+    _exitBtn = lv_imgbtn_create(shed, NULL);
+    lv_imgbtn_set_src(_exitBtn, LV_BTN_STATE_ACTIVE, &iexit);
+    lv_imgbtn_set_src(_exitBtn, LV_BTN_STATE_RELEASED, &iexit);
+    lv_imgbtn_set_src(_exitBtn, LV_BTN_STATE_PRESSED, &iexit);
+    lv_imgbtn_set_src(_exitBtn, LV_BTN_STATE_CHECKED_RELEASED, &iexit);
+    lv_imgbtn_set_src(_exitBtn, LV_BTN_STATE_CHECKED_PRESSED, &iexit);
+    lv_obj_set_click(_exitBtn, true);
+    lv_obj_align(_exitBtn, shed, LV_ALIGN_IN_BOTTOM_MID, 0, 0);
+    lv_obj_set_event_cb(_exitBtn, exit_shed);
+    
+    table = lv_table_create(shed, NULL);
+    
+    lv_table_set_col_cnt(table, 1);
+    lv_table_set_row_cnt(table, 2);
+    lv_obj_align(table, shed, LV_ALIGN_IN_TOP_MID, 0, 0);
+    
+    /*Fill the column*/
+    lv_table_set_col_width(table, 0, 240);
+    lv_table_set_cell_value(table, 0, 0, "agoodWatch " THIS_VERSION_STR);
+    lv_table_set_cell_value(table, 1, 0, "By Alex Goodyear");
+  }
+  else
+  {
+    lv_obj_set_hidden(shed, false);
+  }
+}
+
 
 /*****************************************************************
  *
